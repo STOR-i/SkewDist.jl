@@ -1,7 +1,7 @@
 immutable MvSkewNormal <: Sampleable{Multivariate, Continuous}
-    # ξ::Vector{Float64}    # Location
-    Ω::PDMat                # Correlation
-    α::Vector{Float64}      # Shape
+    ξ::Vector{Float64}      # Location vector
+    Ω::PDMat                # Covariance matrix
+    α::Vector{Float64}      # Shape vector
     # Auxiliary parameters
     δ::Vector{Float64}
     Ωstar::PDMat  # For sampling...
