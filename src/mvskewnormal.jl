@@ -37,6 +37,9 @@ immutable MvSkewNormal <: Sampleable{Multivariate, Continuous}
     end
 end
 
+# Convenience constructor - no location parameters
+MvSkewNormal(Ω::Matrix{Float64}, α::Vector{Float64}) = MvSkewNormal(similar(α), Ω, α)
+
 length(dist::MvSkewNormal) = length(dist.α)
 
 function _rand!{T<:Real}(dist::MvSkewNormal, out::AbstractVector{T})
@@ -69,7 +72,7 @@ end
 # The following model is assumed:
 #   yᵢ ∼ SNₖ(ξᵢ, Ω, α) where ξᵢ = xᵢ̱β
 # for some (p x k) matrix β of parameters
-function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64})
+function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     size(X,1) == size(Y,1) || throw(ArgumentError("X and Y must have the same number of rows"))
     n,p = size(X)
     k = size(Y,2)
@@ -80,7 +83,7 @@ function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64})
     function ll(params::Vector{Float64})
         β = reshape(params[1:(p*k)], p, k)
         η = params[p*k+1:end]
-        -0.5 * n * log(det(V(β))) - 0.5 * n * k + sum(ζ₀(u(β)*η))
+        -(-0.5 * n * log(det(V(β))) - 0.5 * n * k + sum(ζ₀(u(β)*η)))
     end
     
     function dll!(params::Vector{Float64}, grad::Vector{Float64})
@@ -90,8 +93,8 @@ function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64})
          ∂l∂β = X'u(β)*inv(V(β)) - X'ζ₁(u(β)*η)*η'
         
         ∂l∂η= u(β)'ζ₁(u*η)
-        grad[1:p*k] = vec(∂l∂β)
-        grad[p*k + 1:end] = ∂l∂η
+        grad[1:p*k] = -vec(∂l∂β)
+        grad[p*k + 1:end] = -∂l∂η
     end
 
     function ll_and_dll!(params::Vector{Float64}, grad::Vector{Float64})
@@ -99,11 +102,22 @@ function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64})
         η = params[p*k+1:end]
 
          ∂l∂β = X'u(β)*inv(V(β)) - X'ζ₁(u(β)*η)*η'
-        ∂l∂η = u(β)'ζ₁(u*η)
-        grad[1:p*k] = vec(∂l∂β)
-        grad[p*k + 1:end] = ∂l∂η
+        ∂l∂η = u(β)'ζ₁(u(β)*η)
+        grad[1:p*k] = -vec(∂l∂β)
+        grad[p*k + 1:end] = -∂l∂η
         
-        -0.5 * n * log(det(V(β))) - 0.5 * n * k + sum(ζ₀(u(β)*η))
+        -(-0.5 * n * log(det(V(β))) - 0.5 * n * k + sum(ζ₀(u(β)*η)))
     end
+
+    func = DifferentiableFunction(ll, dll!, ll_and_dll!)
+    init = ones(p*k + k)
+
+    results = optimize(func, init; kwargs...)
+    β = reshape(results.minimum[1:p*k], p, k)
+    η = results.minimum[p*k+1:end]
+    Ω = V(β)
+    ω = diagm(sqrt(diag(Ω)))
+    α = ω * η
     
-end    
+    return MvSkewNormal(Ω, α), β
+end
