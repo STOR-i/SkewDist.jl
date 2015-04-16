@@ -18,7 +18,7 @@ immutable MvSkewNormal <: Sampleable{Multivariate, Continuous}
     ω::Matrix{Float64}      # Scale (diagonal matrix)
     Ωz::PDMat               # Correlation matrix
     α::Vector{Float64}      # Shape vector
-    # Auxiliary parameters
+    # Auxiliary parameters for sampling
     δ::Vector{Float64}
     Ωstar::PDMat  # For sampling...
     function MvSkewNormal(ξ::Vector{Float64}, Ω::Matrix{Float64}, α::Vector{Float64})
@@ -38,15 +38,21 @@ immutable MvSkewNormal <: Sampleable{Multivariate, Continuous}
 end
 
 # Convenience constructor - no location parameters
-MvSkewNormal(Ω::Matrix{Float64}, α::Vector{Float64}) = MvSkewNormal(similar(α), Ω, α)
+MvSkewNormal(Ω::Matrix{Float64}, α::Vector{Float64}) = MvSkewNormal(zeros(length(α)), Ω, α)
+
+function show(io::IO, dist::MvSkewNormal)
+    println(io, "ξ = $(dist.ξ)")
+    println(io, "Ω = ")
+    println(io, dist.ω * dist.Ωz.mat * dist.ω)
+    println(io, "α = $(dist.α)")
+end
 
 length(dist::MvSkewNormal) = length(dist.α)
 
 function _rand!{T<:Real}(dist::MvSkewNormal, out::AbstractVector{T})
     xx = randn(length(out) + 1)
     unwhiten!(dist.Ωstar, xx)
-    x0 = xx[1]
-    x = xx[2:end]
+    x0, x = xx[1], xx[2:end]
     copy!(out, dist.ω * (x0 > 0 ? x : -x) + dist.ξ)
 end
 
@@ -89,10 +95,14 @@ function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     function dll!(params::Vector{Float64}, grad::Vector{Float64})
         β = reshape(params[1:(p*k)], p, k)
         η = params[p*k+1:end]
+
+        uβ = u(β)
+        Vβ = V(β)
+
+        # ∂l∂β = X'u(β)*inv(Vβ) - X'ζ₁(u(β)*η)*η'
+         ∂l∂β = X'*(V̱β\(uβ'))' - X'ζ₁(uβ*η)*η'
         
-         ∂l∂β = X'u(β)*inv(V(β)) - X'ζ₁(u(β)*η)*η'
-        
-        ∂l∂η= u(β)'ζ₁(u*η)
+        ∂l∂η= uβ'ζ₁(u*η)
         grad[1:p*k] = -vec(∂l∂β)
         grad[p*k + 1:end] = -∂l∂η
     end
@@ -101,12 +111,16 @@ function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
         β = reshape(params[1:p*k], p, k)
         η = params[p*k+1:end]
 
-         ∂l∂β = X'u(β)*inv(V(β)) - X'ζ₁(u(β)*η)*η'
-        ∂l∂η = u(β)'ζ₁(u(β)*η)
-        grad[1:p*k] = -vec(∂l∂β)
-        grad[p*k + 1:end] = -∂l∂η
+        uβ = u(β)
+        Vβ = V(β)
         
-        -(-0.5 * n * log(det(V(β))) - 0.5 * n * k + sum(ζ₀(u(β)*η)))
+        #  ∂l∂β = X'u(β)*inv(V(β)) - X'ζ₁(u(β)*η)*η'
+         ∂l∂β = X'*(Vβ\(uβ'))' - X'ζ₁(uβ*η)*η'
+        ∂l∂η = uβ'ζ₁(uβ*η)
+        grad[1:p*k] = -vec(∂l∂β)
+        grad[p*k + 1:end] = -∂l∂η  # We actually need to minimize wrt log(η)
+        
+        -(-0.5 * n * log(det(Vβ)) - 0.5 * n * k + sum(ζ₀(uβ*η)))
     end
 
     func = DifferentiableFunction(ll, dll!, ll_and_dll!)
@@ -120,4 +134,13 @@ function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     α = ω * η
     
     return MvSkewNormal(Ω, α), β
+end
+
+# Fit a multivariate Skew Normal distribution
+# directly to a set of observations
+#
+# Y = (n x k) observation matrix (each row correspond to one output observation)
+function fit_skew(Y::Matrix{Float64}; kwargs...)
+    dist, β = fit_skew(ones(size(Y,1),1), Y; kwargs...)
+    return MvSkewNormal(vec(β), dist.ω*dist.Ωz.mat*dist.ω, dist.α)
 end

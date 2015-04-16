@@ -1,4 +1,6 @@
-n = 1000 # Number of observations
+using SkewDist
+
+n = 100000 # Number of observations
 k = 3    # Dimension
 p = 4    # Number of covariates
 
@@ -18,3 +20,9 @@ for i in 1:n
 end
 
 fit_skew(X, Y)
+
+# Test directly for randomly generated data
+ξ = randn(k)
+dist = MvSkewNormal(ξ, Ω, α)
+Y = rand(dist, n)'
+fit_skew(Y; method=:bfgs)
