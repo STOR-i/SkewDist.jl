@@ -71,6 +71,15 @@ end
 ζ₁(x::Float64) = φ(x)/Φ(x)
 ζ₁(x::Vector{Float64}) = map(ζ₁, x)
 
+# Note that these fit functions are not completely reliable.
+# Sometimes a numerical errors occur, for instance, if the line
+# search starts with too large a step size, then the function
+# evaluations are undefined. On other occasions, the algorithm
+# may converge only to a local optimum. The latter problem could
+# perhaps be overcome through the use of the NLOpt library
+# which allows the user to randomly generate multiple start points.
+# The former problem could perhaps be resolved with error handling.
+
 # Fit a MvSkewNormal regression model for model to data
 # X = (n x p) model matrix (each row is corresponds to the predictors of one response)
 # Y = (n x k) response matrix (each row correspond to one output observation)
@@ -111,6 +120,9 @@ function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
         β = reshape(params[1:p*k], p, k)
         η = params[p*k+1:end]
 
+        println("β = $(β)")
+        println("η = $(η)")
+        
         uβ = u(β)
         Vβ = V(β)
         
@@ -118,7 +130,7 @@ function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
          ∂l∂β = X'*(Vβ\(uβ'))' - X'ζ₁(uβ*η)*η'
         ∂l∂η = uβ'ζ₁(uβ*η)
         grad[1:p*k] = -vec(∂l∂β)
-        grad[p*k + 1:end] = -∂l∂η  # We actually need to minimize wrt log(η)
+        grad[p*k + 1:end] = -∂l∂η 
         
         -(-0.5 * n * log(det(Vβ)) - 0.5 * n * k + sum(ζ₀(uβ*η)))
     end
