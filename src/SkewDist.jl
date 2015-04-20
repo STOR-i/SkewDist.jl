@@ -4,8 +4,10 @@ using Distributions, PDMats, Optim
 import Base: length, mean, show
 import Distributions: _rand!, cov, var
 
-export MvSkewNormal, fit_skew
+export MvSkewNormal, MvSkewTDist, fit_skew
 
+include("utils.jl")
 include("mvskewnormal.jl")
+include("MvSkewTDist.jl")
 
 end # module
