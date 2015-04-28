@@ -77,7 +77,7 @@ end
 # The following model is assumed:
 #   yᵢ ∼ SNₖ(ξᵢ, Ω, α) where ξᵢ = xᵢ̱β
 # for some (p x k) matrix β of parameters
-function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
+function fit_MvSkewNormal(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     size(X,1) == size(Y,1) || throw(ArgumentError("X and Y must have the same number of rows"))
     n,p = size(X)
     k = size(Y,2)
@@ -99,7 +99,7 @@ function fit_skew(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
         Vβ = V(β)
 
         # ∂l∂β = X'u(β)*inv(Vβ) - X'ζ₁(u(β)*η)*η'
-         ∂l∂β = X'*(V̱β\(uβ'))' - X'ζ₁(uβ*η)*η'
+         ∂l∂β = X'*(Vβ\(uβ'))' - X'ζ₁(uβ*η)*η'
         
         ∂l∂η= uβ'ζ₁(u*η)
         grad[1:p*k] = -vec(∂l∂β)
@@ -142,7 +142,7 @@ end
 # directly to a set of observations
 #
 # Y = (n x k) observation matrix (each row correspond to one output observation)
-function fit_skew(Y::Matrix{Float64}; kwargs...)
+function fit_MvSkewNormal(Y::Matrix{Float64}; kwargs...)
     dist, β = fit_skew(ones(size(Y,1),1), Y; kwargs...)
     return MvSkewNormal(vec(β), dist.ω*dist.Ωz.mat*dist.ω, dist.α)
 end
