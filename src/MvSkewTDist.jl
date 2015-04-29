@@ -86,27 +86,21 @@ L(u::Vector{Float64}, η::Vector{Float64}) = η'u
 
 function log_g(Q::Float64, ν::Float64, k::Int)
     # Adapted from mvtdist_consts in Distributions package
-    out=Array(Float64,1)
-    try
-        hdf = 0.5 * ν
-        hdim = 0.5 * k
-        shdfhdim = hdf + hdim
-        v = lgamma(shdfhdim) - lgamma(hdf) - hdim*log(ν) - hdim*log(pi)
-        out[1] = v - (shdfhdim * log(1 + Q/ν))
-    catch err
-        println("Error: $(err)")
-        println("Q = $(Q), ν = $(ν), k = $(k)")
-        rethrow(err)
-    end
-    return out[1]
+    hdf = 0.5 * ν
+    hdim = 0.5 * k
+    shdfhdim = hdf + hdim
+    v = lgamma(shdfhdim) - lgamma(hdf) - hdim*log(ν) - hdim*log(pi)
+    return v - (shdfhdim * log(1 + Q/ν))
 end
 
+_sf(Q::Vector{Float64}, ν::Float64, k::Int) = sqrt((ν+k)./(ν+Q))
+#_sf2(Q::Vector{Float64}, ν::Float64, k::Int) = sqrt((1+k/ν)./(1+(Q./ν))) # R uses this definition for large ν
 log_g(q::Vector{Float64}, ν::Float64, k::Int) = map(x->log_g(x,ν,k), q)
-g_Q(q::Vector{Float64}, ν::Float64, k::Int) = -((ν + k)/2ν)*(1.0./(1 + q))
+g_Q(sf::Vector{Float64}) = (-0.5)*sf.^2 #-((ν + k)/2ν)*(1.0./(1 + q))
 ∂logT₁(t::Float64, ν::Float64, k::Int) = (1.0/T₁(t, ν + k)) * t₁(t, ν+k)
 ∂logT₁(t::Vector{Float64}, ν::Float64, k::Int) = (1.0./T₁(t, ν + k)) .* t₁(t, ν+k)
-t_L(q::Vector{Float64}, ν::Float64, k::Int) = sqrt((ν+k)./(q + ν))
-t_q(l::Vector{Float64}, q::Vector{Float64}, ν::Float64, k::Int) = -(l*sqrt(ν+k))./(2*(q + ν).^(1.5))
+t_L(sf::Vector{Float64}) = sf
+t_q(l::Vector{Float64}, q::Vector{Float64}, sf::Vector{Float64}, ν::Float64) = (-0.5).*l.*sf./(q+ν) 
 function ∂log_g∂ν(q::Vector{Float64}, ν::Float64, k::Int)
     0.5 *(digamma(0.5*(ν+k)) - digamma(0.5*ν) - k/ν + ((ν + k)*q)./(ν.^2(1+q/ν)) - log(1+q/ν))
 end
@@ -208,11 +202,12 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
         Ωinv = A'D*A
         T₁tilde = ∂logT₁(tlqν, ν, k)
         
+        sf = _sf(q,ν,k)
         
         # Calculate derivatives        
-        ∂ℓ∂β = -2X'diagm(g_Q(q, ν, k) + T₁tilde.*t_q(l,q,ν,k))*u*Ωinv - X'diagm(T₁tilde.*t_L(q,ν,k))*ones(n)*η'
-        ∂ℓ∂A = 2 * triu( D*A*u'diagm(g_Q(q,ν,k) + T₁tilde .* t_q(l,q,ν,k))*u )
-        ∂ℓ∂D = eye(k).*(A*u'diagm(g_Q(q,ν,k) + T₁tilde.*t_q(l,q,ν,k))*u*A') + 0.5 * n * Dinv
+        ∂ℓ∂β = -2X'diagm(g_Q(sf) + T₁tilde.*t_q(l,q,sf,ν))*u*Ωinv - X'diagm(T₁tilde.*t_L(sf))*ones(n)*η'
+        ∂ℓ∂A = 2 * triu(D*A*u'diagm(g_Q(sf) + T₁tilde.*t_q(l,q,sf,ν))*u)
+        ∂ℓ∂D = eye(k).*(A*u'diagm(g_Q(sf) + T₁tilde.*t_q(l,q,sf,ν))*u*A') + 0.5 * n * Dinv
         ∂ℓ∂ρ = diag(∂ℓ∂D).*(-2*diag(D))
         
         ∂ℓ∂η = u'diagm(T₁tilde.*t_L(q,ν,k))*ones(n)
@@ -238,20 +233,22 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
         q = Q(u, A, ρ)
         l = u*η 
         lg = log_g(q, ν, k)
+
         tlqν = t(l, q, ν, k)
         D = diagm(exp(-2*ρ))
         Dinv = diagm(exp(2*ρ))
         Ωinv = A'D*A
         T₁tilde = ∂logT₁(tlqν, ν, k)
-        
+
+        sf = _sf(q,ν,k)
         
         # Calculate derivatives        
-        ∂ℓ∂β = -2X'diagm(g_Q(q, ν, k) + T₁tilde.*t_q(l,q,ν,k))*u*Ωinv - X'diagm(T₁tilde.*t_L(q,ν,k))*ones(n)*η'
-        ∂ℓ∂A = 2 * triu(D*A*u'diagm(g_Q(q,ν,k) + T₁tilde.*t_q(l,q,ν,k))*u)
-        ∂ℓ∂D = eye(k).*(A*u'diagm(g_Q(q,ν,k) + T₁tilde.*t_q(l,q,ν,k))*u*A') + 0.5 * n * Dinv
+        ∂ℓ∂β = -2X'diagm(g_Q(sf) + T₁tilde.*t_q(l,q,sf,ν))*u*Ωinv - X'diagm(T₁tilde.*t_L(sf))*ones(n)*η'
+        ∂ℓ∂A = 2 * triu(D*A*u'diagm(g_Q(sf) + T₁tilde.*t_q(l,q,sf,ν))*u)
+        ∂ℓ∂D = eye(k).*(A*u'diagm(g_Q(sf) + T₁tilde.*t_q(l,q,sf,ν))*u*A') + 0.5 * n * Dinv
         ∂ℓ∂ρ = diag(∂ℓ∂D).*(-2*diag(D))
         
-        ∂ℓ∂η = u'diagm(T₁tilde.*t_L(q,ν,k))*ones(n)
+        ∂ℓ∂η = u'diagm(T₁tilde.*t_L(sf))*ones(n)
         ∂ℓ∂ν = sum(∂log_g∂ν(q,ν,k) + ∂logT₁∂ν(l,q,ν,k))
         ∂ℓ∂logν = ∂ℓ∂ν * ν
 
