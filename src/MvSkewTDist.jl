@@ -49,6 +49,7 @@ end
 
 
 _t₁(x::Vector{Float64}, df::Float64) = pdf(TDist(df), x)
+_logt₁(x::Vector{Float64}, df::Float64) = logpdf(TDist(df), x)
 _T₁(x::Vector{Float64}, df::Float64) = cdf(TDist(df), x)
 _logT₁(x::Vector{Float64}, df::Float64) = logcdf(TDist(df), x)
 
@@ -85,7 +86,7 @@ _t(L::Vector{Float64}, Q::Vector{Float64}, ν::Float64, k::Int) = L .* sqrt((ν 
 _sf(Q::Vector{Float64}, ν::Float64, k::Int) = sqrt((ν+k)./(ν+Q))
 #_sf2(Q::Vector{Float64}, ν::Float64, k::Int) = sqrt((1+k/ν)./(1+(Q./ν))) # R uses this definition for large ν
 _gQ(sf::Vector{Float64}) = (-0.5)*sf.^2 #-((ν + k)/2ν)*(1.0./(1 + q))
-_∂logT₁∂t(t::Vector{Float64}, ν::Float64, k::Int) = (1.0./_T₁(t, ν + k)) .* _t₁(t, ν+k)
+_∂logT₁∂t(t::Vector{Float64}, ν::Float64, k::Int) = exp(_logt₁(t, ν+k) - _logT₁(t,ν+k))
 _tL(sf::Vector{Float64}) = sf
 _tQ(l::Vector{Float64}, q::Vector{Float64}, sf::Vector{Float64}, ν::Float64) = (-0.5).*l.*sf./(q+ν) 
 function _∂log_g∂ν(q::Vector{Float64}, ν::Float64, k::Int)
