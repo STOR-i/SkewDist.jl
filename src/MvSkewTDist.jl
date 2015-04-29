@@ -187,6 +187,7 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
         # logdet(D) = -2 Σᵢρᵢ
         D = diagm(exp(-2ρ))
         ℓ = n * ( log(2) + 0.5 * logdet(D) ) + sum(lg) + sum(lT)
+
         return ℓ
     end
 
@@ -263,6 +264,7 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
         # logdet(D) = -2 Σᵢρᵢ
         lT = logT₁(t(l, q, ν, k), ν + k)
         ℓ = n * ( log(2) + 0.5 * logdet(D) ) + sum(lg) + sum(lT)
+        #println(ℓ)
         return ℓ
     end
 
@@ -275,18 +277,19 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     init_logν = log(4.0)
     init = [vec(init_β), vec(init_A), init_ρ, init_η, init_logν]
     results = optimize(func, init; kwargs...)
-    
+    print(results)
     β = reshape(results.minimum[1:p*k], p, k)
-    A = reshape(results.minimum[p*k+1:p*k+k*k])
+    A = reshape(results.minimum[p*k+1:p*k+k*k], k, k)
     ρ = results.minimum[p*k+k*k + 1:p*k+k*k + k]
     η = results.minimum[p*k+k*k + k + 1:p*k+k*k + 2*k]
+    ν = exp(results.minimum[end])
     D = diagm(exp(-2*ρ))
     Ωinv = A'D*A
     Ω = inv(Ωinv)
     ω = diagm(sqrt(diag(Ω)))
     α = ω * η
 
-    return MvSkewTDist(zeros(k), Ω, α, df)
+    return MvSkewTDist(zeros(k), Ω, α, ν)
 end
                    
     
