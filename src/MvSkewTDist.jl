@@ -120,6 +120,39 @@ function _∂logT₁∂ν(l::Vector{Float64}, q::Vector{Float64}, ν::Float64, k
     return derivative(lg)(ν)
 end
 
+function read_params(params::Vector{Float64}, p::Int, k::Int)
+    β = reshape(params[1:(p*k)], p, k)
+    ρ = params[(p*k+1):(p*k + k)]
+    i0 = p*k + k
+    A = eye(k)
+    for j in 1:k-1
+        for i in 1:j
+            A[i,j+1] = params[i0 + ((j-1)*j)/2 + i]
+        end
+    end
+    i1 = p*k + (k*(k+1))/2
+    η = params[i1 + 1:i1 + k]
+    ν = exp(params[end])
+    return (β, ρ, A, η, ν)
+end
+
+function write_params(β::Matrix{Float64}, ρ::Vector{Float64}, A::Matrix{Float64}, η::Vector{Float64}, ν::Float64)
+    p, k = size(β)
+    params = Array(Float64, p*k + div((k+2)*(k+1),2))
+    params[1:p*k] = vec(β)
+    params[p*k + 1: p*k + k] = ρ
+    i0 = p*k + k
+    for j in 1:k-1
+        for i in 1:j
+            params[i0 + ((j-1)*j)/2 + i] = A[i,j+1]
+        end
+    end
+    i1 = p*k + (k*(k+1))/2
+    params[i1 + 1:i1 + k] = η
+    params[end] = ν
+    return params
+end
+    
 
 # Fit a MvSkewTDist regression for model to data
 # X = (n x p) model matrix (each row is corresponds to the predictors of one response)
@@ -154,12 +187,8 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     
     
     function ll(params::Vector{Float64})
-        β = reshape(params[1:(p*k)], p, k)
-        A = reshape(params[(p*k + 1):(p*k+k*k)], k, k)
-        ρ = params[(p*k+k*k+1):(p*k + k*k + k)]
-        η = params[(p*k + k*k + k + 1):(p*k + k*k + 2*k)]
-        ν = exp(params[end])
-
+        (β, ρ, A, η, ν) = read_params(params, p, k)
+        
         U = _U(β)
         Q = _Q(U, A, ρ)
         L = _L(U,η)
@@ -169,15 +198,11 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
         D = diagm(exp(-2ρ))
         ℓ = n * ( log(2) + 0.5 * logdet(D) ) + sum( _log_g(Q, ν, k) + _logT₁(t, ν + k) )
 
-        return ℓ
+        return -ℓ
     end
 
     function dll!(params::Vector{Float64}, grad::Vector{Float64})
-        β = reshape(params[1:(p*k)], p, k)
-        A = reshape(params[(p*k + 1):(p*k+k*k)], k, k)
-        ρ = params[(p*k+k*k+1):(p*k + k*k + k)]
-        η = params[(p*k + k*k + k + 1):(p*k + k*k + 2*k)]
-        ν = exp(params[end])
+        (β, ρ, A, η, ν) = read_params(params, p, k)
 
         U = _U(β)
         Q = _Q(U, A, ρ)
@@ -210,11 +235,7 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     end
 
     function ll_and_dll!(params::Vector{Float64}, grad::Vector{Float64})
-        β = reshape(params[1:(p*k)], p, k)
-        A = reshape(params[(p*k + 1):(p*k+k*k)], k, k)
-        ρ = params[(p*k+k*k+1):(p*k + k*k + k)]
-        η = params[(p*k + k*k + k + 1):(p*k + k*k + 2*k)]
-        ν = exp(params[end])
+        (β, ρ, A, η, ν) = read_params(params, p, k)
 
         U = _U(β)
         Q = _Q(U, A, ρ)
@@ -231,48 +252,40 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
         
         # Calculate derivatives        
         ∂ℓ∂β = -2X'diagm(g_Q + ∂logT₁∂t.*t_Q)*U*Ωinv - X'diagm(∂logT₁∂t.*_tL(sf))*ones(n)*η'
-        ∂ℓ∂A = 2 * triu(D*A*U'diagm(g_Q + ∂logT₁∂t.*t_Q)*U)
         ∂ℓ∂D = eye(k).*(A*U'diagm(g_Q + ∂logT₁∂t.*t_Q)*U*A') + 0.5 * n * Dinv
         ∂ℓ∂ρ = diag(∂ℓ∂D).*(-2*diag(D))
+
+        ∂ℓ∂A = 2 * triu(D*A*U'diagm(g_Q + ∂logT₁∂t.*t_Q)*U)
         
         ∂ℓ∂η = U'diagm(∂logT₁∂t.*_tL(sf))*ones(n)
         ∂ℓ∂ν = sum(_∂log_g∂ν(Q,ν,k) + _∂logT₁∂ν(L,Q,ν,k))
         ∂ℓ∂logν = ∂ℓ∂ν * ν
 
-        grad[1:(p*k)] = -vec(∂ℓ∂β)
-        grad[(p*k + 1):(p*k+k*k)] = -vec(  ∂ℓ∂A)
-        grad[(p*k+k*k+1):(p*k + k*k + k)] = -∂ℓ∂ρ
-        grad[(p*k + k*k + k + 1):(p*k + k*k + 2*k)] = -∂ℓ∂η
-        grad[end] =  -∂ℓ∂logν
+        grad[:] = -write_params(∂ℓ∂β, ∂ℓ∂ρ, ∂ℓ∂A, ∂ℓ∂η, ∂ℓ∂logν)
         
         # logdet(D) = -2 Σᵢρᵢ
         ℓ = n * ( log(2) + 0.5 * logdet(D) ) + sum(_log_g(Q, ν, k)) + sum(_logT₁(t, ν + k))
         #println(ℓ)
-        return ℓ
+        return -ℓ
     end
 
     func = DifferentiableFunction(ll, dll!, ll_and_dll!)
-
     init_β = ones(p,k)
     init_A = triu(ones(k,k))
     init_ρ = ones(k)
     init_η = ones(k)
-    init_logν = log(4.0)
-    init = [vec(init_β), vec(init_A), init_ρ, init_η, init_logν]
-    results = optimize(func, init; kwargs...)
+    init_ν = 4.0
+    params = write_params(init_β, init_ρ, init_A, init_η, init_ν)
+    results = optimize(func, params; kwargs...)
     print(results)
-    β = reshape(results.minimum[1:p*k], p, k)
-    A = reshape(results.minimum[p*k+1:p*k+k*k], k, k)
-    ρ = results.minimum[p*k+k*k + 1:p*k+k*k + k]
-    η = results.minimum[p*k+k*k + k + 1:p*k+k*k + 2*k]
-    ν = exp(results.minimum[end])
+    (β, ρ, A, η, ν) = read_params(results.minimum, p, k)
     D = diagm(exp(-2*ρ))
     Ωinv = A'D*A
     Ω = inv(Ωinv)
     ω = diagm(sqrt(diag(Ω)))
     α = ω * η
 
-    return MvSkewTDist(zeros(k), Ω, α, ν)
+    return β, MvSkewTDist(zeros(k), Ω, α, ν)
 end
                    
     

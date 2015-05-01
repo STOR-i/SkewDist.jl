@@ -2,7 +2,7 @@ using SkewDist
 
 srand(1)
 
-n = 1000 # Number of observations
+n = 5000 # Number of observations
 k = 3    # Dimension
 p = 4    # Number of covariates
 
@@ -43,4 +43,4 @@ for i in 1:n
     Y[i,:] = rand(dist)' + ξ[i,:]
 end
 
-Z = fit_MvSkewTDist(X, Y; show_trace=true, method=:l_bfgs )
+β_fit, Z = fit_MvSkewTDist(X, Y; show_trace=true, method=:bfgs )
