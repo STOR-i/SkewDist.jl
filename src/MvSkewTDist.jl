@@ -136,7 +136,7 @@ function read_params(params::Vector{Float64}, p::Int, k::Int)
     return (β, ρ, A, η, ν)
 end
 
-function write_params(β::Matrix{Float64}, ρ::Vector{Float64}, A::Matrix{Float64}, η::Vector{Float64}, ν::Float64)
+function write_params(β::Matrix{Float64}, ρ::Vector{Float64}, A::Matrix{Float64}, η::Vector{Float64}, logν::Float64)
     p, k = size(β)
     params = Array(Float64, p*k + div((k+2)*(k+1),2))
     params[1:p*k] = vec(β)
@@ -149,7 +149,7 @@ function write_params(β::Matrix{Float64}, ρ::Vector{Float64}, A::Matrix{Float6
     end
     i1 = p*k + (k*(k+1))/2
     params[i1 + 1:i1 + k] = η
-    params[end] = ν
+    params[end] = logν
     return params
 end
     
@@ -226,12 +226,8 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
         ∂ℓ∂η = U'diagm(∂logT₁∂t.*_tL(sf))*ones(n)
         ∂ℓ∂ν = sum(_∂log_g∂ν(Q,ν,k) + _∂logT₁∂ν(L,Q,ν,k))
         ∂ℓ∂logν = ∂ℓ∂ν * ν
-
-        grad[1:(p*k)] = -vec(∂ℓ∂β)
-        grad[(p*k + 1):(p*k+k*k)] = -vec(  ∂ℓ∂A)
-        grad[(p*k+k*k+1):(p*k + k*k + k)] = -∂ℓ∂ρ
-        grad[(p*k + k*k + k + 1):(p*k + k*k + 2*k)] = -∂ℓ∂η
-        grad[end] =  -∂ℓ∂logν
+        
+        grad[:] = -write_params(∂ℓ∂β, ∂ℓ∂ρ, ∂ℓ∂A, ∂ℓ∂η, ∂ℓ∂logν)
     end
 
     function ll_and_dll!(params::Vector{Float64}, grad::Vector{Float64})
@@ -275,7 +271,7 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     init_ρ = ones(k)
     init_η = ones(k)
     init_ν = 4.0
-    params = write_params(init_β, init_ρ, init_A, init_η, init_ν)
+    params = write_params(init_β, init_ρ, init_A, init_η, log(init_ν))
     results = optimize(func, params; kwargs...)
     print(results)
     (β, ρ, A, η, ν) = read_params(results.minimum, p, k)
