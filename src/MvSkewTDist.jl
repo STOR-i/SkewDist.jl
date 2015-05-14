@@ -17,6 +17,11 @@ function _rand!{T<:Real}(dist::MvSkewTDist, x::AbstractVector{T})
     broadcast!(+, x, x, dist.ξ)
 end
 
+function _logpdf{T<:Real}(dist::MvSkewTDist, x::AbstractVector{T})
+    
+
+end
+
 function δ(dist::MvSkewTDist)
     ω, Ωz = scale_and_cor(dist.Ω)
     Ωzα = Ωz*dist.α

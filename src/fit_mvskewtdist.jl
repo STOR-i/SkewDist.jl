@@ -2,10 +2,7 @@
 # Calculations required for ll and its gradient #
 #################################################
 
-_t₁(x::Vector{Float64}, df::Float64) = pdf(TDist(df), x)
-_logt₁(x::Vector{Float64}, df::Float64) = logpdf(TDist(df), x)
-_T₁(x::Vector{Float64}, df::Float64) = cdf(TDist(df), x)
-_logT₁(x::Vector{Float64}, df::Float64) = logcdf(TDist(df), x)
+
 
 function _Q(U::Matrix{Float64}, A::Matrix{Float64}, ρ::Vector{Float64})
     n = size(U,1)
@@ -18,15 +15,6 @@ function _Q(U::Matrix{Float64}, A::Matrix{Float64}, ρ::Vector{Float64})
 end
 
 _L(U::Matrix{Float64}, η::Vector{Float64}) = U*η
-
-function _log_g(Q::Vector{Float64}, ν::Float64, k::Int)
-    # Adapted from mvtdist_consts in Distributions package
-    hdf = 0.5 * ν
-    hdim = 0.5 * k
-    shdfhdim = hdf + hdim
-    v = lgamma(shdfhdim) - lgamma(hdf) - hdim*log(ν) - hdim*log(pi)
-    return v - (shdfhdim * log(1 + Q./ν))
-end
 
 _t(L::Vector{Float64}, Q::Vector{Float64}, ν::Float64, k::Int) = L .* sqrt((ν + k)./(Q+ν))
 _sf(Q::Vector{Float64}, ν::Float64, k::Int) = sqrt((ν+k)./(ν+Q))
@@ -72,8 +60,8 @@ end
 
 function dplist2optpar(Ω::Matrix{Float64}, α::Vector{Float64}, ν::Real)
     k = length(α)
-    η = α/sqrt(diag(Ω))
-    Ωinv = inv(Omega)
+    η = α./sqrt(diag(Ω))
+    Ωinv = inv(Ω)
     upper = chol(Ωinv, :U)
     D = diag(upper)
     A = upper./D
@@ -157,7 +145,7 @@ function nll(params::Vector{Float64}, X::Matrix{Float64}, Y::Matrix{Float64})
     D = diagm(exp(-2ρ))
     ℓ = n * ( log(2) + 0.5 * logdet(D) ) + sum( _log_g(Q, ν, k) + _logT₁(t, ν + k) )
 
-    return -ℓ
+    return -2ℓ
 end
 
 function nll_and_grad(params::Vector{Float64}, X::Matrix{Float64}, Y::Matrix{Float64})
@@ -195,7 +183,7 @@ function nll_and_grad(params::Vector{Float64}, X::Matrix{Float64}, Y::Matrix{Flo
     # logdet(D) = -2 Σᵢρᵢ
     ℓ = n * ( log(2) + 0.5 * logdet(D) ) + sum(_log_g(Q, ν, k)) + sum(_logT₁(t, ν + k))
     #println(ℓ)
-    return -ℓ, -write_params(∂ℓ∂β, ∂ℓ∂ρ, ∂ℓ∂A, ∂ℓ∂η, ∂ℓ∂logν)
+    return -2*ℓ, -2*write_params(∂ℓ∂β, ∂ℓ∂ρ, ∂ℓ∂A, ∂ℓ∂η, ∂ℓ∂logν)
 end
 
 # Fit a MvSkewTDist regression for model to data
