@@ -1,6 +1,6 @@
 using SkewDist
 
-srand(1)
+#srand(1)
 
 n = 5000 # Number of observations
 k = 3    # Dimension

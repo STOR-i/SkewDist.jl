@@ -53,20 +53,12 @@ _logt₁(x::Vector{Float64}, df::Float64) = logpdf(TDist(df), x)
 _T₁(x::Vector{Float64}, df::Float64) = cdf(TDist(df), x)
 _logT₁(x::Vector{Float64}, df::Float64) = logcdf(TDist(df), x)
 
-import Base.LinAlg: ldltfact
-
-function ldltfact(Ω::Matrix{Float64})
-    A = chol(Ω)
-    d = diag(A)
-    scale(1./d, A), d.^2
-end
-
 function _Q(U::Matrix{Float64}, A::Matrix{Float64}, ρ::Vector{Float64})
     n = size(U,1)
-    Up = diagm(exp(-ρ)) * A # Upper Cholesky factor
     q = Array(Float64, n)
+    Ωinv = A'diagm(exp(-2.0*ρ))*A
     for i in 1:n
-        q[i] = norm(Up * U[i,:]')^2
+        q[i] = dot(U[i,:], Ωinv * U[i,:]')
     end
     return q
 end
@@ -120,17 +112,24 @@ function _∂logT₁∂ν(l::Vector{Float64}, q::Vector{Float64}, ν::Float64, k
     return derivative(lg)(ν)
 end
 
+function dplist2optpar(Ω::Matrix{Float64}, α::Vector{Float64}, ν::Real)
+    k = length(α)
+    η = α/sqrt(diag(Ω))
+    Ωinv = inv(Omega)
+    upper = chol(Ωinv, :U)
+    D = diag(upper)
+    A = upper./D
+    D .*= D
+    ρ = -log(D)/2
+    return ρ, A, η, log(ν)
+end
+    
 function read_params(params::Vector{Float64}, p::Int, k::Int)
     β = reshape(params[1:(p*k)], p, k)
     ρ = params[(p*k+1):(p*k + k)]
     i0 = p*k + k
-    A = eye(k)
-    for j in 1:k-1
-        for i in 1:j
-            A[i,j+1] = params[i0 + ((j-1)*j)/2 + i]
-        end
-    end
     i1 = p*k + (k*(k+1))/2
+    A = uppertri2mat(params[i0+1:i1], k)
     η = params[i1 + 1:i1 + k]
     ν = exp(params[end])
     return (β, ρ, A, η, ν)
@@ -142,17 +141,43 @@ function write_params(β::Matrix{Float64}, ρ::Vector{Float64}, A::Matrix{Float6
     params[1:p*k] = vec(β)
     params[p*k + 1: p*k + k] = ρ
     i0 = p*k + k
-    for j in 1:k-1
-        for i in 1:j
-            params[i0 + ((j-1)*j)/2 + i] = A[i,j+1]
-        end
-    end
     i1 = p*k + (k*(k+1))/2
+    params[i0+1:i1] = mat2uppertri(A)
     params[i1 + 1:i1 + k] = η
     params[end] = logν
     return params
 end
-    
+
+function mat2uppertri(A::Matrix{Float64})
+    k = size(A,1)
+    U = Array(Float64, div(k*(k-1),2))
+    for j in 1:k-1
+        for i in 1:j
+            U[((j-1)*j)/2 + i] = A[i,j+1]
+        end
+    end
+    return U
+end
+
+function uppertri2mat(U::Vector{Float64}, k::Int)
+    A = zeros(k, k)
+    for j in 1:k-1
+        for i in 1:j
+            A[i,j+1] = U[((j-1)*j)/2 + i]
+        end
+    end
+    return A
+end
+
+function print_params(β::Matrix{Float64}, ρ::Vector{Float64}, A::Matrix{Float64}, η::Vector{Float64}, ν::Float64)
+    println("β = ")
+    println(β)
+    println("ρ = $(ρ)")
+    println("A = ")
+    println(A)
+    println("η = $(η)")
+    println("ν = $(ν)")
+end
 
 # Fit a MvSkewTDist regression for model to data
 # X = (n x p) model matrix (each row is corresponds to the predictors of one response)
@@ -202,37 +227,13 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     end
 
     function dll!(params::Vector{Float64}, grad::Vector{Float64})
-        (β, ρ, A, η, ν) = read_params(params, p, k)
-
-        U = _U(β)
-        Q = _Q(U, A, ρ)
-        L = _L(U,η)
-        t = _t(L, Q, ν, k)
-        
-        D = diagm(exp(-2*ρ))
-        Dinv = diagm(exp(2*ρ))
-        Ωinv = A'D*A
-        sf = _sf(Q,ν,k)
-        ∂logT₁∂t = _∂logT₁∂t(t, ν, k)
-        g_Q = _gQ(sf)
-        t_Q = _tQ(L,Q,sf,ν)
-        
-        # Calculate derivatives        
-        ∂ℓ∂β = -2X'diagm(g_Q + ∂logT₁∂t.*t_Q)*U*Ωinv - X'diagm(∂logT₁∂t.*_tL(sf))*ones(n)*η'
-        ∂ℓ∂A = 2 * triu(D*A*U'diagm(g_Q + ∂logT₁∂t.*t_Q)*U)
-        ∂ℓ∂D = eye(k).*(A*U'diagm(g_Q + ∂logT₁∂t.*t_Q)*U*A') + 0.5 * n * Dinv
-        ∂ℓ∂ρ = diag(∂ℓ∂D).*(-2*diag(D))
-        
-        ∂ℓ∂η = U'diagm(∂logT₁∂t.*_tL(sf))*ones(n)
-        ∂ℓ∂ν = sum(_∂log_g∂ν(Q,ν,k) + _∂logT₁∂ν(L,Q,ν,k))
-        ∂ℓ∂logν = ∂ℓ∂ν * ν
-        
-        grad[:] = -write_params(∂ℓ∂β, ∂ℓ∂ρ, ∂ℓ∂A, ∂ℓ∂η, ∂ℓ∂logν)
+        ll_and_dll!(params, grad)
     end
 
     function ll_and_dll!(params::Vector{Float64}, grad::Vector{Float64})
         (β, ρ, A, η, ν) = read_params(params, p, k)
-
+        #print_params(β, ρ, A, η, ν)
+        println("————————————–")
         U = _U(β)
         Q = _Q(U, A, ρ)
         L = _L(U,η)
@@ -257,6 +258,8 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
         ∂ℓ∂ν = sum(_∂log_g∂ν(Q,ν,k) + _∂logT₁∂ν(L,Q,ν,k))
         ∂ℓ∂logν = ∂ℓ∂ν * ν
 
+        print_params(∂ℓ∂β, ∂ℓ∂ρ, ∂ℓ∂A , ∂ℓ∂η, ∂ℓ∂logν)
+        
         grad[:] = -write_params(∂ℓ∂β, ∂ℓ∂ρ, ∂ℓ∂A, ∂ℓ∂η, ∂ℓ∂logν)
         
         # logdet(D) = -2 Σᵢρᵢ
@@ -272,6 +275,7 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     init_η = ones(k)
     init_ν = 4.0
     params = write_params(init_β, init_ρ, init_A, init_η, log(init_ν))
+    print_params(init_β, init_ρ, init_A, init_η, init_ν)
     results = optimize(func, params; kwargs...)
     print(results)
     (β, ρ, A, η, ν) = read_params(results.minimum, p, k)
@@ -283,6 +287,3 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
 
     return β, MvSkewTDist(zeros(k), Ω, α, ν)
 end
-                   
-    
-                   
