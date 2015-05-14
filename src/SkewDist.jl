@@ -9,5 +9,6 @@ export MvSkewNormal, MvSkewTDist, fit_MvSkewNormal, fit_MvSkewTDist
 include("utils.jl")
 include("mvskewnormal.jl")
 include("MvSkewTDist.jl")
+include("fit_mvskewtdist.jl")
 
 end # module
