@@ -15,7 +15,6 @@ function _Q(U::Matrix{Float64}, A::Matrix{Float64}, ρ::Vector{Float64})
 end
 
 _L(U::Matrix{Float64}, η::Vector{Float64}) = U*η
-
 _t(L::Vector{Float64}, Q::Vector{Float64}, ν::Float64, k::Int) = L .* sqrt((ν + k)./(Q+ν))
 _sf(Q::Vector{Float64}, ν::Float64, k::Int) = sqrt((ν+k)./(ν+Q))
 #_sf2(Q::Vector{Float64}, ν::Float64, k::Int) = sqrt((1+k/ν)./(1+(Q./ν))) # R uses this definition for large ν
@@ -24,7 +23,7 @@ _∂logT₁∂t(t::Vector{Float64}, ν::Float64, k::Int) = exp(_logt₁(t, ν+k)
 _tL(sf::Vector{Float64}) = sf
 _tQ(l::Vector{Float64}, q::Vector{Float64}, sf::Vector{Float64}, ν::Float64) = (-0.5).*l.*sf./(q+ν) 
 function _∂log_g∂ν(q::Vector{Float64}, ν::Float64, k::Int)
-    0.5 *(digamma(0.5*(ν+k)) - digamma(0.5*ν) - k/ν + ((ν + k)*q)./(ν.^2(1+q/ν)) - log(1+q/ν))
+    0.5 *(digamma(0.5*(ν+k)) - digamma(0.5*ν) - k/ν + ((ν + k)*q)./(ν^2 * (1+q/ν)) - log(1+q/ν))
 end
 
 
@@ -112,6 +111,9 @@ function uppertri2mat(U::Vector{Float64}, k::Int)
             A[i,j+1] = U[((j-1)*j)/2 + i]
         end
     end
+    for i in 1:k
+        A[i,i] = 1.0
+    end
     return A
 end
 
@@ -143,7 +145,7 @@ function nll(params::Vector{Float64}, X::Matrix{Float64}, Y::Matrix{Float64})
     
     # logdet(D) = -2 Σᵢρᵢ
     D = diagm(exp(-2ρ))
-    ℓ = n * ( log(2) + 0.5 * logdet(D) ) + sum( _log_g(Q, ν, k) + _logT₁(t, ν + k) )
+    ℓ = n * ( log(2) - 0.5 * logdet(D) ) + sum( _log_g(Q, ν, k) + _logT₁(t, ν + k) )
 
     return -2ℓ
 end
@@ -227,13 +229,15 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     end
     
     func = DifferentiableFunction(obj, grad!, obj_and_grad!)
-    init_β = ones(p,k)
-    init_A = triu(ones(k,k))
-    init_ρ = ones(k)
-    init_η = ones(k)
-    init_ν = 4.0
-    params = write_params(init_β, init_ρ, init_A, init_η, log(init_ν))
-    print_params(init_β, init_ρ, init_A, init_η, init_ν)
+    βinit = llsq(X,Y; bias=false)
+    resid = Y - X*βinit
+    Ωinit = cov(resid)
+    αinit = zeros(k)
+    νinit = 1.0
+    ρinit, Ainit, ηinit, logνinit = dplist2optpar(Ωinit, αinit, νinit)
+
+    params = write_params(βinit, ρinit, Ainit, ηinit, logνinit)
+    print_params(βinit, ρinit, Ainit, ηinit, logνinit)
     results = optimize(func, params; kwargs...)
     print(results)
     (β, ρ, A, η, ν) = read_params(results.minimum, p, k)

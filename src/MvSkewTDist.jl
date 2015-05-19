@@ -17,9 +17,16 @@ function _rand!{T<:Real}(dist::MvSkewTDist, x::AbstractVector{T})
     broadcast!(+, x, x, dist.ξ)
 end
 
+function _logpdf_MvSkewDist{T<:Real}(ξ::Vector{Float64}, Ω::Matrix{Float64}, α::Vector{Float64},
+                                     df::Float64, y::AbstractVector{T})
+    ω = sqrt(diag(Ω))
+    
+    
+end
+
 function _logpdf{T<:Real}(dist::MvSkewTDist, x::AbstractVector{T})
     
-
+    
 end
 
 function δ(dist::MvSkewTDist)

@@ -1,6 +1,6 @@
 module SkewDist
 
-using Distributions, PDMats, Optim
+using Distributions, MultivariateStats, PDMats, Optim
 import Base: length, mean, show
 import Distributions: _rand!, cov, var
 
