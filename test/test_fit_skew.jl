@@ -44,3 +44,8 @@ for i in 1:n
 end
 
 β_fit, Z = fit_MvSkewTDist(X, Y; show_trace=true, method=:bfgs )
+
+ξ = randn(k)
+dist2 = MvSkewTDist(ξ, Ω, α, ν)
+Y2 = rand(dist2, n)'
+dist_fit = fit_MvSkewTDist(Y2; show_trace=true, method=:bfgs)

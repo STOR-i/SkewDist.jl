@@ -249,3 +249,12 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
 
     return β, MvSkewTDist(zeros(k), Ω, α, ν)
 end
+
+# Fit a multivariate Skew Normal distribution
+# directly to a set of observations
+#
+# Y = (n x k) observation matrix (each row correspond to one output observation)
+function fit_MvSkewTDist(Y::Matrix{Float64}; kwargs...)
+    β, dist = fit_MvSkewTDist(ones(size(Y,1),1), Y; kwargs...)
+    return MvSkewTDist(vec(β), dist.Ω, dist.α, dist.df)
+end
