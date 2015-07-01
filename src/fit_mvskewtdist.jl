@@ -2,12 +2,10 @@
 # Calculations required for ll and its gradient #
 #################################################
 
-
-
-function _Q(U::Matrix{Float64}, A::Matrix{Float64}, ρ::Vector{Float64})
+function _Q(U::Matrix{Float64}, A::Triangular, ρ::Vector{Float64})
     n = size(U,1)
     q = Array(Float64, n)
-    Ωinv = A'diagm(exp(-2.0*ρ))*A
+    Ωinv = A'Diagonal(exp(-2.0*ρ))*A
     for i in 1:n
         q[i] = dot(U[i,:], Ωinv * U[i,:]')
     end
@@ -144,7 +142,7 @@ function nll(params::Vector{Float64}, X::Matrix{Float64}, Y::Matrix{Float64})
     t = _t(L, Q, ν, k)
     
     # logdet(D) = -2 Σᵢρᵢ
-    D = diagm(exp(-2ρ))
+    D = Diagonal(exp(-2ρ))
     ℓ = n * ( log(2) - 0.5 * logdet(D) ) + sum( _log_g(Q, ν, k) + _logT₁(t, ν + k) )
 
     return -2ℓ
@@ -154,6 +152,8 @@ function nll_and_grad(params::Vector{Float64}, X::Matrix{Float64}, Y::Matrix{Flo
     n, p = size(X)
     k = size(Y,2)
     (β, ρ, A, η, ν) = read_params(params, p, k)
+    A = Triangular(A,:U)
+    
     # print_params(β, ρ, A, η, ν)
     # println("————————————–")
     U = _U(X,Y,β)
@@ -161,8 +161,8 @@ function nll_and_grad(params::Vector{Float64}, X::Matrix{Float64}, Y::Matrix{Flo
     L = _L(U,η)
     t = _t(L, Q, ν, k)
     
-    D = diagm(exp(-2*ρ))
-    Dinv = diagm(exp(2*ρ))
+    D = Diagonal(exp(-2*ρ))
+    Dinv = Diagonal(exp(2*ρ))
     Ωinv = A'D*A
     sf = _sf(Q,ν,k)
     ∂logT₁∂t = _∂logT₁∂t(t, ν, k)
@@ -170,13 +170,13 @@ function nll_and_grad(params::Vector{Float64}, X::Matrix{Float64}, Y::Matrix{Flo
     t_Q = _tQ(L,Q,sf,ν)
     
     # Calculate derivatives        
-    ∂ℓ∂β = -2X'diagm(g_Q + ∂logT₁∂t.*t_Q)*U*Ωinv - X'diagm(∂logT₁∂t.*_tL(sf))*ones(n)*η'
-    ∂ℓ∂D = eye(k).*(A*U'diagm(g_Q + ∂logT₁∂t.*t_Q)*U*A') + 0.5 * n * Dinv
-    ∂ℓ∂ρ = diag(∂ℓ∂D).*(-2*diag(D))
+    ∂ℓ∂β = -2X'Diagonal(g_Q + ∂logT₁∂t.*t_Q)*U*Ωinv - X'Diagonal(∂logT₁∂t.*_tL(sf))*ones(n)*η'
+    ∂ℓ∂D = Diagonal(A*U'Diagonal(g_Q + ∂logT₁∂t.*t_Q)*U*A') + 0.5 * n * Dinv
+    ∂ℓ∂ρ = -2*diag(∂ℓ∂D*D)
 
-    ∂ℓ∂A = 2 * triu(D*A*U'diagm(g_Q + ∂logT₁∂t.*t_Q)*U)
+    ∂ℓ∂A = 2 * triu(D*A*U'Diagonal(g_Q + ∂logT₁∂t.*t_Q)*U)
     
-    ∂ℓ∂η = U'diagm(∂logT₁∂t.*_tL(sf))*ones(n)
+    ∂ℓ∂η = U'Diagonal(∂logT₁∂t.*_tL(sf))*ones(n)
     ∂ℓ∂ν = sum(_∂log_g∂ν(Q,ν,k) + _∂logT₁∂ν(L,Q,ν,k))
     ∂ℓ∂logν = ∂ℓ∂ν * ν
 
@@ -241,10 +241,10 @@ function fit_MvSkewTDist(X::Matrix{Float64}, Y::Matrix{Float64}; kwargs...)
     results = optimize(func, params; kwargs...)
     print(results)
     (β, ρ, A, η, ν) = read_params(results.minimum, p, k)
-    D = diagm(exp(-2*ρ))
+    D = Diagonal(exp(-2*ρ))
     Ωinv = A'D*A
     Ω = inv(Ωinv)
-    ω = diagm(sqrt(diag(Ω)))
+    ω = Diagonal(sqrt(diag(Ω)))
     α = ω * η
 
     return β, MvSkewTDist(zeros(k), Ω, α, ν)
