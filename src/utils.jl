@@ -22,9 +22,24 @@ function scale_and_cor(Ω::Matrix{Float64})
     diagm(ω), Ωz
 end
 
+function scale_and_cor(Ω::PDMat)
+    Ωz = similar(Ω.mat)
+    d = size(Ω,1)
+    ω = sqrt(diag(Ω))
+    for i in 1:d, j in 1:d
+        Ωz[i,j] = Ω.mat[i,j]/(ω[i]*ω[j])
+    end
+    Diagonal(ω), PDMat(Ωz)
+end
+
 function δ(Ω::Matrix{Float64}, α::Vector{Float64})
     ω, Ωz = scale_and_cor(Ω)
     Ωzα = Ωz*α
     αΩzα = dot(α, Ωzα)
     Ωzα/sqrt(1+αΩzα)
+end
+
+function δ(Ω::PDMat, α::Vector{Float64})
+    ω, Ωz = scale_and_cor(Ω)
+    (Ωz * α)/sqrt(1.0 + quad(Ω, α))
 end

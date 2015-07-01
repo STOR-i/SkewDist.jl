@@ -5,25 +5,22 @@ using Distributions: φ, Φ
 
 immutable MvSkewNormal <: Sampleable{Multivariate, Continuous}
     ξ::Vector{Float64}      # Location vector
-    ω::Matrix{Float64}      # Scale (diagonal matrix)
+    ω::Diagonal{Float64}      # Scale (diagonal matrix)
     Ωz::PDMat               # Correlation matrix
     α::Vector{Float64}      # Shape vector
     # Auxiliary parameters for sampling
     δ::Vector{Float64}
     Ωstar::PDMat  # For sampling...
     function MvSkewNormal(ξ::Vector{Float64}, Ω::Matrix{Float64}, α::Vector{Float64})
-        ω, Ωz = scale_and_cor(Ω)
+        ω, Ωz = scale_and_cor(PDMat(Ω))
         d = length(α)
-        Ωzα = Ωz*α
-        αΩzα = dot(α, Ωzα)
-        δ = Ωzα/sqrt(1+αΩzα)
+        _δ = δ(Ωz, α)
         Ωstar = Array(Float64, d+1, d+1)
-        Ωstar[:, 1] = [1, δ]
-        Ωstar[1,:] = [1 δ']
-        Ωstar[2:end, 2:end] = Ωz
+        Ωstar[:, 1] = [1, _δ]
+        Ωstar[1,:] = [1 _δ']
+        Ωstar[2:end, 2:end] = Ωz.mat
         Ωstar = PDMat(Ωstar)
-        Ωz = PDMat(Ωz)
-        new(ξ, ω, Ωz, α, δ, Ωstar)
+        new(ξ, ω, Ωz, α, _δ, Ωstar)
     end
 end
 
@@ -47,7 +44,7 @@ function _rand!{T<:Real}(dist::MvSkewNormal, out::AbstractVector{T})
 end
 
 mean(dist::MvSkewNormal) = sqrt(2/π)*dist.ω*dist.δ + dist.ξ
-var(dist::MvSkewNormal) = (dist.ω.^2)*(diag(dist.Ωz.mat) - (sqrt(2/π)*dist.δ).^2)
+var(dist::MvSkewNormal) = (dist.ω^2)*(diag(dist.Ωz.mat) - (sqrt(2/π)*dist.δ).^2)
 
 function cov(dist::MvSkewNormal)
     μz=sqrt(2/π)*dist.δ
