@@ -1,5 +1,7 @@
 using SkewDist, Distributions, Base.Test
 
+println("Testing MvSkewTDist...")
+
 function rand_pd(d::Int)
     A = randn(d,d)
     A'A

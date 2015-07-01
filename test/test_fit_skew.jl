@@ -1,5 +1,6 @@
 using SkewDist
 
+println("Testing fitting functions...")
 #srand(1)
 
 n = 5000 # Number of observations

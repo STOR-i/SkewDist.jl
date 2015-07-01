@@ -1,5 +1,7 @@
 using SkewDist, Distributions, Base.Test
 
+println("Testing MvSkewNormal...")
+
 function cov2cor(X::Matrix{Float64})
     A = similar(X)
     d = size(X,1)
