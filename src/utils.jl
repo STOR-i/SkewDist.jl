@@ -21,3 +21,10 @@ function scale_and_cor(Ω::Matrix{Float64})
     end
     diagm(ω), Ωz
 end
+
+function δ(Ω::Matrix{Float64}, α::Vector{Float64})
+    ω, Ωz = scale_and_cor(Ω)
+    Ωzα = Ωz*α
+    αΩzα = dot(α, Ωzα)
+    Ωzα/sqrt(1+αΩzα)
+end

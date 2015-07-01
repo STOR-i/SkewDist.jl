@@ -21,6 +21,7 @@ function _rand!{T<:Real}(dist::MvSkewTDist, x::AbstractVector{T})
     # x = ξ + z/sqrt(x)
     broadcast!(/, x, x, sqrt(w))
     broadcast!(+, x, x, dist.ξ)
+    x
 end
 
 function _logpdf!{T<:Real}(r::AbstractArray, dist::MvSkewTDist, X::DenseMatrix{T})
@@ -40,15 +41,8 @@ function _logpdf{T<:Real}(dist::MvSkewTDist, x::AbstractVector{T})
     log(2) + logtd + _logT₁(dot(dist.α,ωinv*(x-dist.ξ)) * sqrt((dist.df + k)/(Q + dist.df)), dist.df + k)
 end
 
-function δ(dist::MvSkewTDist)
-    ω, Ωz = scale_and_cor(dist.Ω.mat)
-    Ωzα = Ωz*dist.α
-    αΩzα = dot(dist.α, Ωzα)
-    Ωzα/sqrt(1+αΩzα)
-end
-
 function μ(dist::MvSkewTDist)
-    δ(dist) * sqrt(dist.df/π) * (gamma(0.5*(dist.df - 1))/gamma(0.5*dist.df))
+    δ(dist.Ω.mat, dist.α) * sqrt(dist.df/π) * (gamma(0.5*(dist.df - 1))/gamma(0.5*dist.df))
 end
 
 function mean(dist::MvSkewTDist)
