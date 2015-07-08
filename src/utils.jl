@@ -32,6 +32,8 @@ function scale_and_cor(Ω::PDMat)
     Diagonal(ω), PDMat(Ωz)
 end
 
+δ(α::Float64) = α/sqrt(1.0 + α^2)
+
 function δ(Ω::Matrix{Float64}, α::Vector{Float64})
     ω, Ωz = scale_and_cor(Ω)
     Ωzα = Ωz*α
