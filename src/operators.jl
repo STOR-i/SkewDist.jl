@@ -20,3 +20,21 @@ function *(x::Vector{Float64}, dist::MvSkewTDist)
     α =  dot(b,dist.α)/(c*ω)
     SkewTDist(ξ, ω, α, dist.df)
 end
+
+function marginals(dist::MvSkewTDist, indices::Vector{Int})
+    n = length(dist)
+    (all(0 .< indices) && all(indices .<= n)) || throw(ArgumentError("Indices must be between 1 and $(n)"))
+    A = zeros(Float64, length(indices), n)
+    for (i, k) in enumerate(indices)
+        A[i,k] = 1.0
+    end
+    return A*dist
+end
+    
+function marginals(dist::MvSkewTDist, i::Int)
+    n = length(dist)
+    (i > 0 && i < n) || throw(ArgumentError("Indices must be between 1 and $(n)"))
+    x = zeros(n)
+    x[i] = 1.0
+    return x * dist
+end
