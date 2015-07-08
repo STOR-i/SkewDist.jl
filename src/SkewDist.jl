@@ -10,7 +10,7 @@ export pdf, dof
 include("utils.jl")
 include("mvskewnormal.jl")
 include("mvskewtdist.jl")
-#include("skewtdist.jl")
+include("skewtdist.jl")
 include("operators.jl")
 include("fit_mvskewtdist.jl")
 
