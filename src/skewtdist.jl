@@ -23,11 +23,18 @@ function rand(dist::SkewTDist)
     ## return rand(MvSkewTDist([dist.ξ], Ω, [dist.α], dist.df))[1]
 end
 
+function cdf(dist::SkewTDist, x::Real)
+    rcopy("pst($(x), xi = $(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = $(dist.df))")[1]
+end
+
+function quantile(dist::SkewTDist, β::Float64)
+    rcopy("qst($(β), xi=$(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = $(dist.df))")[1]
+end
+
 minimum(dist::SkewTDist) = -Inf
 maximum(dist::SkewTDist) = Inf
 
 μ(dist::SkewTDist) = δ(dist.α) * sqrt(dist.df/π) * (gamma(0.5*(dist.df-1.0))/gamma(0.5*dist.df))
 mean(dist::SkewTDist) = dist.ξ + dist.ω * μ(dist)
 var(dist::SkewTDist) = (dist.ω^2) * (dist.df/(dist.df - 2.0)) - dist.ω^2 * μ(dist)^2
-
-dof(dist::SkewTDist) = d.df
+dof(dist::SkewTDist) = dist.df
