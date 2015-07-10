@@ -22,6 +22,16 @@ function _rand!{T<:Real}(dist::MvSkewTDist, x::AbstractVector{T})
     x
 end
 
+function _rand!(dist::MvSkewTDist, X::DenseMatrix)
+    chisqd = Chisq(dist.df)
+    w = rand(chisqd, (1,size(X,2)))/dist.df
+    sndist = MvSkewNormal(dist.Ω.mat, dist.α)
+    rand!(sndist, X)
+    broadcast!(/, X, X, sqrt(w))
+    broadcast!(+, X, X, dist.ξ)
+    X
+end
+
 function _logpdf!{T<:Real}(r::AbstractArray, dist::MvSkewTDist, X::DenseMatrix{T})
     k = length(dist)
     Y = broadcast(-, X, dist.ξ)

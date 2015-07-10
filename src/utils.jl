@@ -43,5 +43,5 @@ end
 
 function δ(Ω::PDMat, α::Vector{Float64})
     ω, Ωz = scale_and_cor(Ω)
-    (Ωz * α)/sqrt(1.0 + quad(Ω, α))
+    (Ωz * α)/sqrt(1.0 + quad(Ωz, α))
 end
