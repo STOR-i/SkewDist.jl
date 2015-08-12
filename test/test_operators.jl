@@ -9,7 +9,7 @@ println("Testing operators...")
 
 srand(2)
 
-N = 100000
+N = 1000000
 
 d = 3
 ξ = rand(d)

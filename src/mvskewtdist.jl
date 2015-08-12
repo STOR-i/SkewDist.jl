@@ -50,7 +50,7 @@ function _logpdf{T<:Real}(dist::MvSkewTDist, x::AbstractVector{T})
 end
 
 function μ(dist::MvSkewTDist)
-    δ(dist.Ω, dist.α) * sqrt(dist.df/π) * (gamma(0.5*(dist.df - 1))/gamma(0.5*dist.df))
+    δ(dist.Ω, dist.α) * sqrt(dist.df/π) * exp(lgamma(0.5*(dist.df - 1)) - lgamma(0.5*dist.df))
 end
 
 function mean(dist::MvSkewTDist)
