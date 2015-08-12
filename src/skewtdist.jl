@@ -24,17 +24,25 @@ function rand(dist::SkewTDist)
 end
 
 function cdf(dist::SkewTDist, x::Real)
-    rcopy("pst($(x), xi = $(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = $(dist.df))")[1]
+    if dist.df < 1e8
+        rcopy("pst($(x), xi = $(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = $(dist.df))")[1]
+    else
+        rcopy("pst($(x), xi = $(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = Inf)")[1]
+    end
 end
 
 function quantile(dist::SkewTDist, β::Float64)
-    rcopy("qst($(β), xi=$(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = $(dist.df))")[1]
+    if dist.df < 1e8
+        return rcopy("qst($(β), xi=$(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = $(dist.df))")[1]
+    else
+        return rcopy("qst($(β), xi=$(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = Inf)")[1]
+    end
 end
 
 minimum(dist::SkewTDist) = -Inf
 maximum(dist::SkewTDist) = Inf
 
-μ(dist::SkewTDist) = δ(dist.α) * sqrt(dist.df/π) * (gamma(0.5*(dist.df-1.0))/gamma(0.5*dist.df))
+μ(dist::SkewTDist) = δ(dist.α) * sqrt(dist.df/π) * exp(lgamma(0.5*(dist.df-1.0)) - lgamma(0.5*dist.df))
 mean(dist::SkewTDist) = dist.ξ + dist.ω * μ(dist)
 var(dist::SkewTDist) = (dist.ω^2) * (dist.df/(dist.df - 2.0)) - dist.ω^2 * μ(dist)^2
 dof(dist::SkewTDist) = dist.df
