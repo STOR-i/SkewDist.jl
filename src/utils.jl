@@ -1,7 +1,7 @@
-_t₁(x, df::Float64) = pdf(TDist(df), x)
-_logt₁(x, df::Float64) = logpdf(TDist(df), x)
-_T₁(x, df::Float64) = cdf(TDist(df), x)
-_logT₁(x, df::Float64) = logcdf(TDist(df), x)
+_t₁(x, df::Float64) = tdistpdf(df, x)
+_logt₁(x, df::Float64) = tdistlogpdf(df, x)
+_T₁(x, df::Float64) = tdistcdf(df, x)
+_logT₁(x, df::Float64) = tdistlogcdf(df, x)
 
 function _log_g(Q, ν::Float64, k::Int)
     # Adapted from mvtdist_consts in Distributions package
