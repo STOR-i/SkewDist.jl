@@ -1,13 +1,11 @@
 module SkewDist
 
-using Distributions, MultivariateStats, PDMats, Optim, RCall
+using Distributions, StatsFuns, MultivariateStats, PDMats, Optim, Roots
 import Base: length, mean, show, rand, var, cov
 import Distributions: _rand!, pdf, _logpdf, _logpdf!, dof, cdf, quantile
 
 export MvSkewNormal, MvSkewTDist, SkewTDist, fit_MvSkewNormal, fit_MvSkewTDist, marginals
 export pdf, dof, cdf, quantile
-
-rcopy("library('sn')")
 
 include("utils.jl")
 include("mvskewnormal.jl")

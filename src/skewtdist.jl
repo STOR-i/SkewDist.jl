@@ -17,26 +17,18 @@ function rand(dist::SkewTDist)
     Ω[1,1] = dist.ω^2
     sndist = MvSkewNormal(Ω, [dist.α])
     x = rand(sndist)[1]
-    return dist.ξ + x/sqrt(w)    
+    return dist.ξ + x/sqrt(w)
     ## Ω = Array(Float64, 1,1)
     ## Ω[1,1] = dist.ω^2
     ## return rand(MvSkewTDist([dist.ξ], Ω, [dist.α], dist.df))[1]
 end
 
 function cdf(dist::SkewTDist, x::Real)
-    if dist.df < 1e8
-        rcopy("pst($(x), xi = $(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = $(dist.df))")[1]
-    else
-        rcopy("pst($(x), xi = $(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = Inf)")[1]
-    end
+    quadgk(t->pdf(dist,t), -Inf, x)[1]
 end
 
 function quantile(dist::SkewTDist, β::Float64)
-    if dist.df < 1e8
-        return rcopy("qst($(β), xi=$(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = $(dist.df))")[1]
-    else
-        return rcopy("qst($(β), xi=$(dist.ξ), omega = $(dist.ω), alpha = $(dist.α), nu = Inf)")[1]
-    end
+    newton(x->cdf(dist,x) - β, dist.ξ)
 end
 
 minimum(dist::SkewTDist) = -Inf
