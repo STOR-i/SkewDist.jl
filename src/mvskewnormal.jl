@@ -1,8 +1,6 @@
 # See "Statistical Applications of the multivariate skew-normal distribution" by Azzalini and Capitanio (1998)
 # for notations and explanations
 
-using Distributions: φ, Φ
-
 immutable MvSkewNormal <: Sampleable{Multivariate, Continuous}
     ξ::Vector{Float64}      # Location vector
     ω::Diagonal{Float64}      # Scale (diagonal matrix)
@@ -16,7 +14,7 @@ immutable MvSkewNormal <: Sampleable{Multivariate, Continuous}
         d = length(α)
         _δ = δ(Ωz, α)
         Ωstar = Array(Float64, d+1, d+1)
-        Ωstar[:, 1] = [1, _δ]
+        Ωstar[:, 1] = [1; _δ]
         Ωstar[1,:] = [1 _δ']
         Ωstar[2:end, 2:end] = Ωz.mat
         Ωstar = PDMat(Ωstar)
@@ -52,10 +50,10 @@ function cov(dist::MvSkewNormal)
 end
 
 # Special functions (related to cumulant function of half-normal distribution)
-ζ₀(x::Float64) = log(2π * Φ(x))
+ζ₀(x::Float64) = log(2π * normcdf(x))
 ζ₀(x::Vector{Float64}) = map(ζ₀, x)
 
-ζ₁(x::Float64) = φ(x)/Φ(x)
+ζ₁(x::Float64) = normpdf(x)/normcdf(x)
 ζ₁(x::Vector{Float64}) = map(ζ₁, x)
 
 # Note that these fit functions are not completely reliable.

@@ -2,7 +2,7 @@
 # Calculations required for ll and its gradient #
 #################################################
 
-function _Q(U::Matrix{Float64}, A::Triangular, ρ::Vector{Float64})
+function _Q(U::Matrix{Float64}, A::UpperTriangular, ρ::Vector{Float64})
     n = size(U,1)
     q = Array(Float64, n)
     Ωinv = A'Diagonal(exp(-2.0*ρ))*A
