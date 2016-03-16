@@ -1,7 +1,11 @@
 _t₁(x, df::Float64) = tdistpdf(df, x)
+_t₁(x::Vector, df::Float64) = map(u->tdistpdf(df, u), x)
 _logt₁(x, df::Float64) = tdistlogpdf(df, x)
+_logt₁(x::Vector, df::Float64) = map(u->tdistlogpdf(df, u), x)
 _T₁(x, df::Float64) = tdistcdf(df, x)
+_T₁(x::Vector, df::Float64) = map(u->tdistcdf(df, u), x)
 _logT₁(x, df::Float64) = tdistlogcdf(df, x)
+_logT₁(x::Vector, df::Float64) = map(u->tdistlogcdf(df, u), x)
 
 function _log_g(Q, ν::Float64, k::Int)
     # Adapted from mvtdist_consts in Distributions package
