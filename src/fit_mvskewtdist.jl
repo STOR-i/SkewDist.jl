@@ -7,7 +7,7 @@ function _Q(U::Matrix{Float64}, A::UpperTriangular, ρ::Vector{Float64})
     q = Array(Float64, n)
     Ωinv = A'Diagonal(exp(-2.0*ρ))*A
     for i in 1:n
-        q[i] = dot(U[i,:], Ωinv * U[i,:]')
+        q[i] = (U[i,:] * Ωinv * U[i,:]')[1,1]
     end
     return q
 end
@@ -152,7 +152,7 @@ function nll_and_grad(params::Vector{Float64}, X::Matrix{Float64}, Y::Matrix{Flo
     n, p = size(X)
     k = size(Y,2)
     (β, ρ, A, η, ν) = read_params(params, p, k)
-    A = Triangular(A,:U)
+    A = UpperTriangular(A)
     
     # print_params(β, ρ, A, η, ν)
     # println("————————————–")
