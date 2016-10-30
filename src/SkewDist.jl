@@ -2,7 +2,7 @@ module SkewDist
 
 using Distributions, StatsFuns, MultivariateStats, PDMats, Optim, Roots
 import Base: length, mean, show, rand, var, cov, *
-import Distributions: _rand!, pdf, _logpdf, _logpdf!, dof, cdf, quantile, minimum, maximum
+import Distributions: sampler, _rand!, pdf, _logpdf, _logpdf!, dof, cdf, quantile, minimum, maximum, mgf
 
 export MvSkewNormal, MvSkewTDist, SkewNormal, SkewTDist, fit_MvSkewNormal, fit_MvSkewTDist, marginals, mgf
 export pdf, dof, cdf, quantile

@@ -2,7 +2,7 @@ type SkewNormalSampler <: Sampleable{Univariate,Continuous}
     ξ::Float64
     ω::Float64
     aux::MvNormal
-    function SkewNormalSampler(ξ::Float64, ω::Float64, α::Float64)
+    function SkewNormalSampler(ξ::Real, ω::Real, α::Real)
         δ = α/(1 + α^2)
         aux = MvNormal([[1 δ]; [δ 1]])
         new(ξ, ω, aux)
@@ -38,10 +38,10 @@ end
 minimum(dist::SkewNormal) = -Inf
 maximum(dist::SkewNormal) = Inf
 
-mean(dist::SkewNormal) = dist.ω*sqrt(2/π)*(α/(1.0 + dist.α^2)) + dist.ξ
-var(dist::SkewNormal) = (dist.ω^2) * (1.0 - (sqrt(2/π)*(α/(1.0 + dist.α^2)))^2)
+mean(dist::SkewNormal) = dist.ω*sqrt(2/π)*(dist.α/sqrt(1.0 + dist.α^2)) + dist.ξ
+var(dist::SkewNormal) = (dist.ω^2) * (1.0 - (sqrt(2/π)*(dist.α/sqrt(1.0 + dist.α^2)))^2)
 
 # Cumulant generating function
 
-cgf(dist::SkewNormal, t::Real) = t*dist.ξ + 0.5*t^2*dist.ω^2 + log(2normcdf((dist.ω*t)/(1 + α^2)))
+cgf(dist::SkewNormal, t::Real) = t*dist.ξ + 0.5*t^2*dist.ω^2 + log(2normcdf((dist.ω*t*dist.α)/sqrt(1 + dist.α^2)))
 mgf(dist::SkewNormal, t::Real) = exp(cgf(dist, t))

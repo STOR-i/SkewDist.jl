@@ -5,9 +5,11 @@ type SkewTDist <: ContinuousUnivariateDistribution
     df::Float64 # Degrees of freedom
 end
 
+skewtdistpdf(α::Real, df::Real, z::Real) = 2.0* _t₁(z, df) * _T₁(α * z * sqrt((df + 1)/(z^2 + df)), df + 1)
+
 function pdf(dist::SkewTDist, x::Real)
     z = (x - dist.ξ)/dist.ω
-    2.0 * (_t₁(z, dist.df)/dist.ω) * _T₁(dist.α * z * sqrt((dist.df + 1)/(z^2 + dist.df)), dist.df + 1)
+    skewtdistpdf(dist.α, dist.df, z)/dist.ω
 end
 
 function rand(dist::SkewTDist)
@@ -28,7 +30,12 @@ function cdf(dist::SkewTDist, x::Real)
 end
 
 function quantile(dist::SkewTDist, β::Float64)
-    newton(x->cdf(dist,x) - β, dist.ξ)
+    if dist.α < 0
+        β = 1 - β
+    end
+    a = tdistinvcdf(dist.df, β)
+    b = sqrt(fdistinvcdf(1.0, dist.df, β))
+    qz = fzero(x->cdf(dist, x) - β, a, b)
 end
 
 minimum(dist::SkewTDist) = -Inf
