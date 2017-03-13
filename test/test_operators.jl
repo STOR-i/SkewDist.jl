@@ -1,10 +1,5 @@
 using SkewDist, Distributions, Base.Test
 
-function rand_pd(d::Int)
-    A = randn(d,d)
-    A'A
-end
-
 println("Testing operators...")
 
 srand(2)
@@ -25,7 +20,7 @@ dist2 = A * dist
 y = A * rand(dist, N)
 @test_approx_eq_eps mean(y, 2) mean(dist2) 1e-1
 @test_approx_eq_eps var(y,2) var(dist2) 1e-1
-@test_approx_eq_eps cov(y, vardim=2) cov(dist2) 1e-1
+@test_approx_eq_eps Base.covm(y, mean(y, 2), 2) cov(dist2) 1e-1
 
 println("\tLinear combination...")
 dist3 = x * dist

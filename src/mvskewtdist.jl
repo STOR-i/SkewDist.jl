@@ -24,7 +24,7 @@ end
 
 function _rand!(dist::MvSkewTDist, X::DenseMatrix)
     chisqd = Chisq(dist.df)
-    w = rand(chisqd, (1,size(X,2)))/dist.df
+    w = rand(chisqd, 1, size(X,2))/dist.df
     sndist = MvSkewNormal(dist.Ω.mat, dist.α)
     rand!(sndist, X)
     broadcast!(/, X, X, sqrt(w))
