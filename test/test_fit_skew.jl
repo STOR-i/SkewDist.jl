@@ -41,12 +41,13 @@ dist = MvSkewTDist(zeros(k), Ω, α, ν)
 
 Y = Array(Float64, n, k)
 for i in 1:n
-    Y[i,:] = rand(dist)' + ξ[i,:]
+    Y[i,:] = rand(dist)' + ξ[i,:]'
 end
 
-β_fit, Z = fit_MvSkewTDist(X, Y; show_trace=true, method=:bfgs )
+Omega = fit_MvSkewTDist(X, Y; show_trace=true)
+β_fit, Z = fit_MvSkewTDist(X, Y; show_trace=true)
 
 ξ = randn(k)
 dist2 = MvSkewTDist(ξ, Ω, α, ν)
 Y2 = rand(dist2, n)'
-dist_fit = fit_MvSkewTDist(Y2; show_trace=true, method=:bfgs)
+dist_fit = fit_MvSkewTDist(Y2; show_trace=true)
